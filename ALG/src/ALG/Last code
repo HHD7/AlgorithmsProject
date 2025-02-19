@@ -56,10 +56,11 @@ public class SeamCarving {
             int[] seam = new int[height];
             double seamEnergy = traceSeam(energyMatrix, startX, 0, seam);
 
-            if (seamEnergy < minEnergy) {
-                minEnergy = seamEnergy;
-                System.arraycopy(seam, 0, bestSeam, 0, height);
-            }
+        // If this seam has lower energy, or if the energy is the same but the seam starts to the left
+        if (seamEnergy < minEnergy || (seamEnergy == minEnergy && startX < bestSeam[0])) {
+            minEnergy = seamEnergy;
+            System.arraycopy(seam, 0, bestSeam, 0, height);
+        }
         }
         return bestSeam;
     }
