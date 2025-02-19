@@ -1,0 +1,136 @@
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+
+import java.io.IOException;
+import java.io.File;
+import javax.imageio.ImageIO;
+public class MainTest {
+	 // حساب الطاقة للصورة
+    public static double[][] calcEnergy(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        double[][] energy = new double[height][width];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                energy[y][x] = calcPixelEnergy(image, x, y);
+            }
+        }
+        return energy;
+    }
+
+    // حساب طاقة البكسل بناءً على الجيران
+    private static double calcPixelEnergy(BufferedImage image, int x, int y) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int left = (x > 0) ? image.getRGB(x - 1, y) : image.getRGB(x, y);
+        int right = (x < width - 1) ? image.getRGB(x + 1, y) : image.getRGB(x, y);
+        int up = (y > 0) ? image.getRGB(x, y - 1) : image.getRGB(x, y);
+        int down = (y < height - 1) ? image.getRGB(x, y + 1) : image.getRGB(x, y);
+
+        return Math.sqrt(gradient(left, right) + gradient(up, down));
+    }
+
+    // حساب التدرج بين البكسلات
+    private static double gradient(int a, int b) {
+        Color ca = new Color(a);
+        Color cb = new Color(b);
+        return Math.pow(ca.getRed() - cb.getRed(), 2) +
+               Math.pow(ca.getGreen() - cb.getGreen(), 2) +
+               Math.pow(ca.getBlue() - cb.getBlue(), 2);
+    }
+
+    public static int[] findSeamBruteForce(double[][] energy) {
+        int height = energy.length;
+        int width = energy[0].length;
+        int[] bestSeam = new int[height];
+        double minEnergy = Double.POSITIVE_INFINITY;
+
+        // Try every possible starting position in the first row
+        for (int startX = 0; startX < width; startX++) {
+            int[] seam = new int[height];
+            double seamEnergy = findSeam(energy, startX, 0, seam);
+            if (seamEnergy < minEnergy) {
+                minEnergy = seamEnergy;
+                System.arraycopy(seam, 0, bestSeam, 0, height);
+            }
+        }
+
+        return bestSeam;
+    }
+
+    // Recursively finds the lowest-energy seam starting from (x, y)
+    private static double findSeam(double[][] energy, int x, int y, int[] seam) {
+        int height = energy.length;
+        int width = energy[0].length;
+
+        seam[y] = x; // Store current position
+
+        // Base case: If we reached the last row, return its energy
+        if (y == height - 1) {
+            return energy[y][x];
+        }
+
+        // Recursively find the minimum-energy seam in the next row
+        double minEnergy = Double.POSITIVE_INFINITY;
+        int bestNextX = x;
+
+        for (int dx = -1; dx <= 1; dx++) { // Left, middle, right
+            int nextX = x + dx;
+            if (nextX >= 0 && nextX < width) {
+                int[] tempSeam = new int[height]; // Temporary seam storage
+                System.arraycopy(seam, 0, tempSeam, 0, height);
+                double nextEnergy = findSeam(energy, nextX, y + 1, tempSeam);
+                if (nextEnergy < minEnergy) {
+                    minEnergy = nextEnergy;
+                    bestNextX = nextX;
+                    System.arraycopy(tempSeam, 0, seam, 0, height); // Store best seam found so far
+                }
+            }
+        }
+
+        return energy[y][x] + minEnergy;
+    }
+
+    // إزالة السميز من الصورة
+    public static BufferedImage removeSeam(BufferedImage image, int[] seam) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        BufferedImage newImage = new BufferedImage(width - 1, height, BufferedImage.TYPE_INT_RGB);
+
+        for (int y = 0; y < height; y++) {
+            int newX = 0;
+            for (int x = 0; x < width; x++) {
+                if (x != seam[y]) {
+                    newImage.setRGB(newX, y, image.getRGB(x, y));
+                    newX++;
+                }
+            }
+        }
+        return newImage;
+    }
+
+    public static void main(String[] args) {
+    	  try {
+    	        String imagePath = "C:\\Users\\L\\Desktop\\carving.jpg"; 
+
+    	        File inputFile = new File(imagePath);
+    	        BufferedImage image = ImageIO.read(inputFile);
+
+    	        int seamsToRemove = 50;
+    	        for (int i = 0; i < seamsToRemove; i++) {
+    	            double[][] energy = calcEnergy(image);
+    	            int[] seam = findSeamBruteForce(energy);
+    	            image = removeSeam(image, seam);
+    	        }
+
+    	        // Save the output image
+    	        String outputImagePath = "C:\\\\Users\\\\L\\\\Pictures\\\\carving_output.jpg";
+    	        ImageIO.write(image, "jpg", new File(outputImagePath));
+
+    	        System.out.println("✅ Seam carving completed. Image saved at: " + outputImagePath);
+    	    } catch (IOException e) {
+    	        System.out.println("❌ Error processing the image file.");
+    	        e.printStackTrace();
+    	    }}
+}
